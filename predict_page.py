@@ -1,19 +1,29 @@
-
 import streamlit as st
 import pickle
 import numpy as np
-
+import os
 
 def load_model():
-    with open('saved_steps.pkl', 'rb') as file:
-        data = pickle.load(file)
-    return data
+    try:
+        with open('saved_steps.pkl', 'rb') as file:
+            data = pickle.load(file)
+        return data
+    except FileNotFoundError as e:
+        st.error("Model file not found. Please ensure 'saved_steps.pkl' is in the correct directory.")
+        st.stop()
+    except Exception as e:
+        st.error(f"An error occurred while loading the model: {e}")
+        st.stop()
 
 data = load_model()
 
-regressor = data["model"]
-le_country = data["le_country"]
-le_education = data["le_education"]
+regressor = data.get("model")
+le_country = data.get("le_country")
+le_education = data.get("le_education")
+
+if not regressor or not le_country or not le_education:
+    st.error("Failed to load one or more components from the model data.")
+    st.stop()
 
 def show_predict_page():
     st.title("Software Developer Salary Prediction")
@@ -47,14 +57,20 @@ def show_predict_page():
     country = st.selectbox("Country", countries)
     education = st.selectbox("Education Level", education)
 
-    expericence = st.slider("Years of Experience", 0, 50, 3)
+    experience = st.slider("Years of Experience", 0, 50, 3)
 
     ok = st.button("Calculate Salary")
     if ok:
-        X = np.array([[country, education, expericence ]])
-        X[:, 0] = le_country.transform(X[:,0])
-        X[:, 1] = le_education.transform(X[:,1])
+        X = np.array([[country, education, experience]])
+        X[:, 0] = le_country.transform(X[:, 0])
+        X[:, 1] = le_education.transform(X[:, 1])
         X = X.astype(float)
 
-        salary = regressor.predict(X)
-        st.subheader(f"The estimated salary is ${salary[0]:.2f}")
+        try:
+            salary = regressor.predict(X)
+            st.subheader(f"The estimated salary is ${salary[0]:.2f}")
+        except Exception as e:
+            st.error(f"An error occurred during prediction: {e}")
+
+if __name__ == "__main__":
+    show_predict_page()
